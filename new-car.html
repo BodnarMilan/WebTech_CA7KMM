@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autó Kezelés</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <script src="app.js"></script>
+    <h4>Autó létrehozása / szerkesztése / keresése</h4>
+    <div>
+        <label for="neptun">Neptun kód:</label>
+        <input type="text" id="neptun" maxlength="6" />
+
+        <label for="car-id">Autó ID:</label>
+        <input type="number" id="car-id" />
+
+        <p>A "Keresés" gomb segítségével ellenőrizhető, hogy az adott Neptun kóddal és járműID-vel létezik e jármű. <br>
+            Ha igen, az adatai betölsére kerülnek a könnyű szerkeszthetőség érdekében.
+        </p>
+        <button id="search-btn">Keresés</button>
+
+        <hr>
+
+        <label for="brand">Márka:</label>
+        <input type="text" id="brand" />
+
+        <label for="model">Modell:</label>
+        <input type="text" id="model" />
+
+        <label for="fuelUse">Fogyasztás (l/100km):</label>
+        <input type="number" step="0.01" id="fuelUse" />
+
+        <label for="dayOfCommission">Üzembe helyezés napja:</label>
+        <input type="date" id="dayOfCommission" />
+
+        <label for="owner">Tulajdonos neve:</label>
+        <input type="text" id="owner" />
+
+        <label>
+            <input type="checkbox" id="electric" />
+            Elektromos
+        </label>
+
+        <div class="button">
+            <button id="create-btn">Autó létrehozása</button>
+            <button id="update-btn">Autó szerkesztése</button>
+            <button id="delete-btn">Autó törlése</button>
+        </div>
+    </div>
+
+    <script>
+        function getCarDataFromForm() {
+            return {
+                brand: document.querySelector('#brand').value.trim(),
+                model: document.querySelector('#model').value.trim(),
+                electric: document.querySelector('#electric').checked,
+                fuelUse: parseFloat(document.querySelector('#fuelUse').value),
+                dayOfCommission: document.querySelector('#dayOfCommission').value,
+                owner: document.querySelector('#owner').value.trim()
+            };
+        }
+
+        function validateCarData(data) {
+            const errors = [];
+
+            if (!data.brand || data.brand.length < 2) {
+                errors.push('A márka legalább 2 karakter hosszú legyen.');
+            }
+
+            if (isNaN(data.fuelUse) || data.fuelUse < 0 || data.fuelUse > 25) {
+                errors.push('A fogyasztás 0 és 25 liter/100km között legyen.');
+            }
+
+            if (!data.model) {
+                errors.push('A modell mező nem lehet üres.');
+            }
+
+            if (!data.owner || data.owner.length < 3) {
+                errors.push('A tulajdonos neve legalább 3 karakter hosszú legyen.');
+            }
+
+            if (!data.dayOfCommission) {
+               errors.push('Az üzembe helyezés dátuma kötelező.');
+            } else if (new Date(data.dayOfCommission) > new Date()) {
+                errors.push('Az üzembe helyezés napja nem lehet a jövőben.');
+            }
+
+            return errors;
+        }
+
+        function fillFormWithCar(car) {
+            document.querySelector('#brand').value = car.brand;
+            document.querySelector('#model').value = car.model;
+            document.querySelector('#fuelUse').value = car.fuelUse;
+            document.querySelector('#dayOfCommission').value = car.dayOfCommission;
+            document.querySelector('#owner').value = car.owner;
+            document.querySelector('#electric').checked = car.electric;
+        }
+
+        async function createCar() {
+            const neptun = document.querySelector('#neptun').value.trim().toUpperCase();
+            const data = getCarDataFromForm();
+            const errors = validateCarData(data);
+
+            if (!neptun || neptun.length !== 6) {
+                errors.unshift('A Neptun kód 6 karakter hosszú legyen.');
+            }
+
+            if (errors.length > 0) {
+                alert('Hibák:\n' + errors.join('\n'));
+                return;
+            }
+
+            try {
+                const res = await fetch(`https://iit-playground.arondev.hu/api/${neptun}/car`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`Szerverhiba (${res.status}): ${errorText}`);
+                }
+
+                const result = await res.json();
+                alert('Autó sikeresen létrehozva! ID: ' + result.id);
+            } catch (err) {
+                alert('Váratlan hiba történt: ' + err.message);
+            }
+        }
+
+        async function updateCar() {
+            const neptun = document.querySelector('#neptun').value.trim().toUpperCase();
+            const id = parseInt(document.querySelector('#car-id').value);
+            const data = getCarDataFromForm();
+            data.id = id;
+
+            const errors = validateCarData(data);
+            if (!neptun || neptun.length !== 6) {
+                errors.unshift('A Neptun kód 6 karakter hosszú legyen.');
+            }
+
+            if (isNaN(id)) {
+                errors.unshift('Adj meg érvényes autó ID-t!');
+            }
+
+            if (errors.length > 0) {
+                alert('Hibák:\n' + errors.join('\n'));
+                return;
+            }
+
+            try {
+                const res = await fetch(`https://iit-playground.arondev.hu/api/${neptun}/car`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`Szerverhiba (${res.status}): ${errorText}`);
+                }
+
+                alert('Autó sikeresen frissítve!');
+            } catch (err) {
+                alert('Váratlan hiba történt: ' + err.message);
+            }
+        }
+
+        async function deleteCar() {
+            const neptun = document.querySelector('#neptun').value.trim().toUpperCase();
+            const id = parseInt(document.querySelector('#car-id').value);
+
+            if (!neptun || neptun.length !== 6 || isNaN(id)) {
+                alert('Adj meg érvényes Neptun kódot és autó ID-t!');
+                return;
+            }
+
+            try {
+                const res = await fetch(`https://iit-playground.arondev.hu/api/${neptun}/car/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`Szerverhiba (${res.status}): ${errorText}`);
+                }
+
+                alert('Autó sikeresen törölve!');
+            } catch (err) {
+                alert('Váratlan hiba történt: ' + err.message);
+            }
+        }
+
+        async function searchCar() {
+            const neptun = document.querySelector('#neptun').value.trim().toUpperCase();
+            const id = parseInt(document.querySelector('#car-id').value);
+
+            if (!neptun || neptun.length !== 6 || isNaN(id)) {
+                alert("Adj meg érvényes Neptun kódot és autó ID-t!");
+                return;
+            }
+
+            try {
+                const res = await fetch(`https://iit-playground.arondev.hu/api/${neptun}/car`);
+                if (!res.ok) {
+                    throw new Error(`Szerverhiba: ${res.status}`);
+                }
+
+                const cars = await res.json();
+                const car = cars.find(c => c.id === id);
+
+                if (!car) {
+                    alert("Nincs ilyen ID-jű autó a megadott Neptun kódhoz.");
+                    return;
+                }
+
+                fillFormWithCar(car);
+            } catch (err) {
+                alert('Váratlan hiba történt: ' + err.message);
+            }
+        }
+
+        document.querySelector('#create-btn').addEventListener('click', createCar);
+        document.querySelector('#update-btn').addEventListener('click', updateCar);
+        document.querySelector('#delete-btn').addEventListener('click', deleteCar);
+        document.querySelector('#search-btn').addEventListener('click', searchCar);
+    </script>
+</body>
+</html>

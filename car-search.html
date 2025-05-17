@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autók keresése Neptun-kód alapján</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <script src="app.js"></script>
+    <h4>Autók keresése Neptun kód alapján</h4>
+    <p>A Neptun kód megadásával az adott kódhoz tartozó összes jármű megjelenítésre kerül minden adatával együtt.</p>
+
+    <label for="neptun-code">Neptun kód (pl. TEST01):</label>
+    <input type="text" id="neptun-code" maxlength="6" />
+    <button id="search-btn" class="btn btn-primary">Keresés</button>
+
+    <div id="result"></div>
+
+    <script>
+        function loadCarsByNeptun(neptunCode) {
+            if (neptunCode.length !== 6) {
+                alert("A Neptun kód pontosan 6 karakter hosszú legyen!");
+                return;
+            }
+
+            const url = `https://iit-playground.arondev.hu/api/${encodeURIComponent(neptunCode)}/car`;
+
+            fetch(url)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Nem sikerült lekérni az autókat.');
+                    }
+                    return res.json();
+                })
+                .then(cars => {
+                    const resultDiv = document.querySelector('#result');
+                    resultDiv.innerHTML = '';
+
+                    if (cars.length === 0) {
+                        resultDiv.innerHTML = '<p>Nincs autó a megadott Neptun kód alatt.</p>';
+                        return;
+                    }
+
+                    for (const car of cars) {
+                        const carHtml = `
+                            <div class="card">
+                                <h4>${car.brand} ${car.model}</h4>
+                                <p><strong>ID:</strong> ${car.id}</p>
+                                <p><strong>Tulajdonos:</strong> ${car.owner}</p>
+                                <p><strong>Üzembe helyezés napja:</strong> ${car.dayOfCommission}</p>
+                                <p><strong>Elektromos:</strong> ${car.electric ? "Igen" : "Nem"}</p>
+                                <p><strong>Fogyasztás:</strong> ${car.fuelUse.toFixed(2)} l/100km</p>
+                            </div>
+                        `;
+                        resultDiv.innerHTML += carHtml;
+                    }
+                })
+                .catch(error => {
+                    document.querySelector('#result').innerHTML = `<p style="color:red;">Hiba történt: ${error.message}</p>`;
+                    console.error(error);
+                });
+        }
+
+        const searchBtn = document.querySelector('#search-btn');
+        searchBtn.addEventListener('click', () => {
+            const code = document.querySelector('#neptun-code').value.trim().toUpperCase();
+            loadCarsByNeptun(code);
+        });
+    </script>
+</body>
+</html>
